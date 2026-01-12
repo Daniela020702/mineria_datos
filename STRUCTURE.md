@@ -106,6 +106,112 @@ just setup
 └── .pre-commit-config.yaml  # Pre-commit hooks
 ```
 
+## Architecture Overview
+
+### Design Decisions
+
+**uv vs conda/mamba**: 10-100x faster dependency resolution, simpler toolchain, PyPI-native. All dependencies are specified in `pyproject.toml` and locked in `uv.lock` for reproducible builds. Migrated from conda in January 2025 for better performance and modern Python ecosystem integration.
+
+**Just vs Makefile**: Modern syntax with better error messages, cross-platform compatibility (including Windows), and more intuitive command definitions. See `justfile` for all available commands and their implementation.
+
+**Direct notebook references**: Notebooks in `notebooks/` are referenced directly in `chapters/_quarto.yml` via relative paths like `../notebooks/*.ipynb`. No symlinks needed - this is cleaner, more portable, and the Quarto-native way of including notebooks in books.
+
+### Build Pipeline
+
+The course uses a three-stage build and deployment pipeline:
+
+1. **Local Development**:
+   ```
+   just preview → Quarto renders chapters/ → Live preview on localhost:4200
+   ```
+   Changes auto-reload as you edit `.qmd` and `.ipynb` files.
+
+2. **CI/CD (GitHub Actions)**:
+   ```
+   Push to main → GitHub Actions triggered →
+   uv installs dependencies → Quarto renders →
+   Deploys to GitHub Pages
+   ```
+   Workflow file: `.github/workflows/quarto-publish.yml`
+
+3. **Execution Strategy**:
+   - `freeze: auto` in `_quarto.yml` caches notebook outputs in `chapters/_freeze/`
+   - Re-executes only when source code changes
+   - Dramatically speeds up repeated renders
+   - First render: ~2-3 minutes, subsequent renders: ~30 seconds
+
+### Notebook Integration
+
+The Quarto book in `chapters/` seamlessly includes Jupyter notebooks from the `notebooks/` directory:
+
+```yaml
+# chapters/_quarto.yml example
+book:
+  chapters:
+    - 03-regresion_lineal.qmd                          # Regular Quarto chapter
+    - ../notebooks/violaciones_supuestos_regresion.ipynb  # Notebook included directly
+    - ../notebooks/analisis_advertising_dataset.ipynb     # Another notebook
+```
+
+**Key points:**
+- No symlinks are used (unlike the previous conda-based setup)
+- Notebooks remain in their own directory for better organization
+- Quarto follows relative paths and renders notebooks natively
+- Notebook outputs are preserved and cached with `freeze: auto`
+- Students can work on notebooks independently using `just lab`
+
+### GitHub Pages Configuration
+
+For automated deployment to work, configure in your GitHub repository:
+
+**Required Settings** (Settings → Pages):
+- **Source**: GitHub Actions (NOT "Deploy from a branch")
+- This enables the workflow to deploy directly
+
+**Workflow Permissions** (Settings → Actions → General):
+- **Workflow permissions**: "Read and write permissions"
+- ✓ "Allow GitHub Actions to create and approve pull requests"
+
+**First Deployment:**
+- Takes ~3-5 minutes (downloads all dependencies)
+- Subsequent builds: ~1-2 minutes (uses caching)
+- Site will be available at: `https://YOUR_USERNAME.github.io/mineria_datos_itam/`
+
+**Monitoring:**
+- Check Actions tab for workflow status
+- Green checkmark = successful deployment
+- Red X = check logs for errors
+
+### Troubleshooting Common Issues
+
+**`just: command not found`**
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to ~/.local/bin
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+**`uv sync` fails**
+```bash
+# Clean cache and retry
+uv cache clean
+uv sync --locked --reinstall
+```
+
+**Notebooks don't render in Quarto**
+```bash
+# Ensure Jupyter kernel is available
+uv run jupyter kernelspec list
+# Clear Quarto cache
+just clean
+# Try rendering again
+just render
+```
+
+**GitHub Actions deployment fails**
+- Check that GitHub Pages source is set to "GitHub Actions"
+- Verify workflow has write permissions (Settings → Actions → General)
+- Check Actions tab for specific error messages in logs
+
 ## Course Content
 
 1. **Requerimientos y Computación** - Prerequisites and setup
