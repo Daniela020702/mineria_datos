@@ -6,6 +6,7 @@
 Motivación: DM vs. ML vs. IA. El valor económico de los datos. Ética y privacidad.
 
 ### Metodología CRISP-DM
+Introducción al aprendizaje de máquina.
 Ciclo de vida del proyecto. Definición de objetivos de negocio y traducción a objetivos de minería.
 
 ### Comprensión de Datos (EDA)
